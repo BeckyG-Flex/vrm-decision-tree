@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vendor Security Review — Decision Tool</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f4f0;
+      --surface: #ffffff;
+      --border: #e8e6e0;
+      --text-primary: #1a1917;
+      --text-secondary: #6b6862;
+      --text-muted: #9c9890;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --green: #059669;
+      --green-bg: #ecfdf5;
+      --green-border: #a7f3d0;
+      --amber: #d97706;
+      --amber-bg: #fffbeb;
+      --amber-border: #fcd34d;
+      --red: #dc2626;
+      --red-bg: #fef2f2;
+      --red-border: #fca5a5;
+      --orange: #ea580c;
+      --orange-bg: #fff7ed;
+      --orange-border: #fdba74;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.06);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 80px;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    /* Header */
+    .tool-header {
+      text-align: center;
+      margin-bottom: 32px;
+      width: 100%;
+      max-width: 620px;
+    }
+    .tool-header .eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .tool-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+    }
+
+    /* Progress */
+    .progress-bar {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 32px;
+      width: 100%;
+      max-width: 620px;
+    }
+    .progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      position: relative;
+    }
+    .progress-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      width: 100%;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+      transition: background 0.3s ease;
+    }
+    .progress-step.completed:not(:last-child)::after {
+      background: var(--accent);
+    }
+    .step-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+      transition: all 0.3s ease;
+    }
+    .progress-step.active .step-dot {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+    }
+    .progress-step.completed .step-dot {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+    }
+    .step-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-top: 6px;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+    .progress-step.active .step-label {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 620px;
+      overflow: hidden;
+      animation: slideIn 0.25s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-header {
+      padding: 28px 32px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-step-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+      letter-spacing: -0.2px;
+    }
+    .card-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    /* Options */
+    .options-list {
+      padding: 20px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .option {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: var(--surface);
+      user-select: none;
+    }
+    .option:hover {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+    .option.selected {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+    .option.none-option {
+      border-style: dashed;
+    }
+    .option.none-option:hover,
+    .option.none-option.selected {
+      border-color: var(--text-muted);
+      background: #fafaf9;
+    }
+
+    .option-checkbox {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .option.selected .option-checkbox {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .option.selected .option-checkbox::after {
+      content: '';
+      display: block;
+      width: 5px;
+      height: 9px;
+      border: 2px solid white;
+      border-top: none;
+      border-left: none;
+      transform: rotate(45deg) translateY(-1px);
+    }
+    .option.none-option.selected .option-checkbox {
+      background: var(--text-muted);
+      border-color: var(--text-muted);
+    }
+
+    .option-content {
+      flex: 1;
+    }
+    .option-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+      line-height: 1.4;
+    }
+    .option-detail {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* Actions */
+    .card-actions {
+      padding: 20px 32px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn-back {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.15s;
+    }
+    .btn-back:hover { color: var(--text-primary); }
+    .btn-back.invisible { visibility: hidden; }
+
+    .btn-continue {
+      font-size: 14px;
+      font-weight: 600;
+      color: white;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 12px 24px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-continue:hover:not(:disabled) {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+    }
+    .btn-continue:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Result cards */
+    .result-card {
+      width: 100%;
+      max-width: 620px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      animation: slideIn 0.3s ease;
+    }
+    .result-header {
+      padding: 28px 32px 24px;
+    }
+    .result-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 100px;
+      margin-bottom: 14px;
+    }
+    .result-title {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.3px;
+      margin-bottom: 8px;
+    }
+    .result-summary {
+      font-size: 14px;
+      line-height: 1.6;
+      opacity: 0.85;
+    }
+    .result-body {
+      padding: 0 32px 28px;
+    }
+    .result-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      opacity: 0.6;
+    }
+    .result-items {
+      list-style: none;
+      margin-bottom: 20px;
+    }
+    .result-items li {
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 6px 0 6px 20px;
+      position: relative;
+    }
+    .result-items li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      opacity: 0.5;
+      font-size: 12px;
+    }
+    .result-timeline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      margin-top: 4px;
+    }
+    .result-divider {
+      height: 1px;
+      opacity: 0.15;
+      margin: 20px 0;
+      background: currentColor;
+    }
+    .result-action {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 20px;
+    }
+    .result-action-icon {
+      font-size: 18px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    /* Color themes */
+    .theme-green .result-header { background: var(--green-bg); color: #064e3b; }
+    .theme-green .result-badge { background: #a7f3d0; color: #065f46; }
+    .theme-green .result-body { background: var(--green-bg); color: #064e3b; border-top: 1px solid var(--green-border); }
+    .theme-green .result-timeline { background: #a7f3d0; color: #065f46; }
+    .theme-green .result-action { background: #a7f3d0; color: #065f46; }
+
+    .theme-amber .result-header { background: var(--amber-bg); color: #78350f; }
+    .theme-amber .result-badge { background: #fcd34d; color: #78350f; }
+    .theme-amber .result-body { background: var(--amber-bg); color: #78350f; border-top: 1px solid var(--amber-border); }
+    .theme-amber .result-timeline { background: #fcd34d; color: #78350f; }
+    .theme-amber .result-action { background: #fcd34d; color: #78350f; }
+
+    .theme-red .result-header { background: var(--red-bg); color: #7f1d1d; }
+    .theme-red .result-badge { background: #fca5a5; color: #7f1d1d; }
+    .theme-red .result-body { background: var(--red-bg); color: #7f1d1d; border-top: 1px solid var(--red-border); }
+    .theme-red .result-timeline { background: #fca5a5; color: #7f1d1d; }
+    .theme-red .result-action { background: #fca5a5; color: #7f1d1d; }
+
+    .theme-orange .result-header { background: var(--orange-bg); color: #7c2d12; }
+    .theme-orange .result-badge { background: #fdba74; color: #7c2d12; }
+    .theme-orange .result-body { background: var(--orange-bg); color: #7c2d12; border-top: 1px solid var(--orange-border); }
+    .theme-orange .result-timeline { background: #fdba74; color: #7c2d12; }
+    .theme-orange .result-action { background: #fdba74; color: #7c2d12; }
+
+    /* Start screen */
+    .start-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 620px;
+      padding: 48px 40px;
+      text-align: center;
+      animation: slideIn 0.25s ease;
+    }
+    .start-icon {
+      width: 56px;
+      height: 56px;
+      background: var(--accent-light);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 24px;
+    }
+    .start-card h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      letter-spacing: -0.2px;
+    }
+    .start-card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-width: 380px;
+      margin: 0 auto 28px;
+    }
+    .btn-start {
+      font-size: 15px;
+      font-weight: 700;
+      color: white;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 14px 32px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: -0.1px;
+    }
+    .btn-start:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+    }
+
+    .btn-restart {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 20px;
+      cursor: pointer;
+      margin-top: 20px;
+      display: block;
+      width: 100%;
+      max-width: 620px;
+      transition: all 0.15s;
+    }
+    .btn-restart:hover {
+      border-color: var(--text-muted);
+      color: var(--text-primary);
+    }
+
+    /* Footnote */
+    .footnote {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 24px;
+      max-width: 620px;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <div class="tool-header">
+    <div class="eyebrow">Flex Security</div>
+    <h1>Vendor Security Review</h1>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-bar" id="progressBar">
+    <div class="progress-step" id="ps1">
+      <div class="step-dot">1</div>
+      <div class="step-label">Record Quality</div>
+    </div>
+    <div class="progress-step" id="ps2">
+      <div class="step-dot">2</div>
+      <div class="step-label">Security Signals</div>
+    </div>
+    <div class="progress-step" id="ps3">
+      <div class="step-dot">3</div>
+      <div class="step-label">Risk Level</div>
+    </div>
+    <div class="progress-step" id="ps4">
+      <div class="step-dot">✓</div>
+      <div class="step-label">Result</div>
+    </div>
+  </div>
+
+  <!-- START SCREEN -->
+  <div class="start-card" id="startScreen">
+    <div class="start-icon">🔍</div>
+    <h2>Does this vendor need a Security review?</h2>
+    <p>Answer three quick questions about the VDD to find out if and how Security should be involved — and what to expect.</p>
+    <button class="btn-start" onclick="startTool()">Start →</button>
+  </div>
+
+  <!-- STEP 1: Record Quality -->
+  <div class="card hidden" id="step1">
+    <div class="card-header">
+      <div class="card-step-label">Step 1 of 3 — Record Quality</div>
+      <div class="card-title">Does this VDD have any of these issues?</div>
+      <div class="card-subtitle">These are data quality flags that must be fixed before a security review can begin.</div>
+    </div>
+    <div class="options-list">
+      <div class="option" onclick="toggleOption(this, 'step1')" data-value="dd-na">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">Due Diligence field is blank or N/A</div>
+          <div class="option-detail">No documentation of what was reviewed (SOC 2, pen test, questionnaire)</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step1')" data-value="residual-false">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">Residual Risk Rating shows FALSE or is blank</div>
+          <div class="option-detail">Formula broken — no actual risk rating is computed</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step1')" data-value="soc2-stale">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">SOC 2 is older than 18 months, or VDD notes "old SOC 2"</div>
+          <div class="option-detail">Current-period coverage or bridge letter required</div>
+        </div>
+      </div>
+      <div class="option none-option" onclick="toggleNone(this, 'step1')" data-value="none">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">None of these — record looks clean</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="btn-back invisible" onclick="goBack(1)">← Back</button>
+      <button class="btn-continue" id="step1-continue" onclick="goTo(2)" disabled>Continue →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Security Signals -->
+  <div class="card hidden" id="step2">
+    <div class="card-header">
+      <div class="card-step-label">Step 2 of 3 — Security Signals</div>
+      <div class="card-title">Does this vendor have any of these characteristics?</div>
+      <div class="card-subtitle">Select all that apply based on the completed VDD.</div>
+    </div>
+    <div class="options-list">
+      <div class="option" onclick="toggleOption(this, 'step2')" data-value="pii-bsa">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">PII = Yes <span style="opacity:0.5">and</span> BSA/AML = Yes or Fraud = Yes</div>
+          <div class="option-detail">Dual regulatory exposure: NYDFS + BSA obligations</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step2')" data-value="t1">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">Security Tier = T1</div>
+          <div class="option-detail">Direct API or database integration with Flex production systems</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step2')" data-value="ai">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">Vendor uses AI, ML, or automated decision-making</div>
+          <div class="option-detail">Model governance, training data, and subprocessor questions not covered in current VDD template</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step2')" data-value="soc2-exceptions">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">SOC 2 has management responses or exceptions</div>
+          <div class="option-detail">Exceptions require security assessment of control gaps and remediation status</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step2')" data-value="breach-litigation">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">Breach or active litigation mentioned in VDD rationale</div>
+          <div class="option-detail">Needs structured follow-up — free-text rationale is not an audit trail</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step2')" data-value="pilot-t1">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">Vendor type = Pilot/Trial with T1 tier already assigned</div>
+          <div class="option-detail">Escalation path to production not defined; access can expand without re-review</div>
+        </div>
+      </div>
+      <div class="option none-option" onclick="toggleNone(this, 'step2')" data-value="none">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">None of these apply</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="btn-back" onclick="goBack(2)">← Back</button>
+      <button class="btn-continue" id="step2-continue" onclick="goTo(3)" disabled>Continue →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: High-Exposure Combinations -->
+  <div class="card hidden" id="step3">
+    <div class="card-header">
+      <div class="card-step-label">Step 3 of 3 — Risk Level</div>
+      <div class="card-title">Does this vendor have any of these higher-risk combinations?</div>
+      <div class="card-subtitle">These signal that a full Security narrative is needed — not just targeted questions.</div>
+    </div>
+    <div class="options-list">
+      <div class="option" onclick="toggleOption(this, 'step3')" data-value="t1-bcp-pii">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">PII = Yes <span style="opacity:0.5">and</span> BCP = Yes <span style="opacity:0.5">and</span> Security Tier = T1</div>
+          <div class="option-detail">Snowflake-class impact — bank partner will require a written security narrative</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step3')" data-value="bsa-fraud">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">BSA/AML = Yes <span style="opacity:0.5">and</span> Fraud detection = Yes</div>
+          <div class="option-detail">FinCrime regulatory exposure requires security controls confirmation</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step3')" data-value="outside-us">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">Outside US = Yes <span style="opacity:0.5">and</span> customer PII in scope</div>
+          <div class="option-detail">Cross-border data: DPA status, legal transfer mechanism, data sovereignty required</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step3')" data-value="ai-pii">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">AI/ML vendor <span style="opacity:0.5">and</span> customer PII in scope</div>
+          <div class="option-detail">Model governance gap; no current VDD template coverage for this combination</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step3')" data-value="prod-access">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">Direct access to Flex production systems</div>
+          <div class="option-detail">Regardless of vendor reputation — Takeoff and PwC both fit this pattern</div>
+        </div>
+      </div>
+      <div class="option" onclick="toggleOption(this, 'step3')" data-value="litigation-data">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">Active litigation involving data security</div>
+          <div class="option-detail">Litigation may signal control weakness that VDD scoring doesn't surface</div>
+        </div>
+      </div>
+      <div class="option none-option" onclick="toggleNone(this, 'step3')" data-value="none">
+        <div class="option-checkbox"></div>
+        <div class="option-content">
+          <div class="option-label">None of these — only Level 1 signals apply</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="btn-back" onclick="goBack(3)">← Back</button>
+      <button class="btn-continue" id="step3-continue" onclick="showResult()" disabled>See result →</button>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="result-card hidden theme-orange" id="result-level0">
+    <div class="result-header">
+      <div class="result-badge">⚠ Fix First</div>
+      <div class="result-title">Record needs correction before Security can review</div>
+      <div class="result-summary">The VDD has data quality issues that prevent a reliable security assessment. Fix these with Danyale before proceeding.</div>
+    </div>
+    <div class="result-body">
+      <div class="result-action">
+        <div class="result-action-icon">📋</div>
+        <div>Correct the flagged fields in the VDD, then run this checklist again.</div>
+      </div>
+      <div class="result-section-label">What needs to be fixed</div>
+      <ul class="result-items" id="level0-fixes"></ul>
+      <div class="result-divider"></div>
+      <div class="result-section-label">Why this matters</div>
+      <ul class="result-items">
+        <li>Due Diligence = N/A means there is no record of what was reviewed</li>
+        <li>Residual Risk = FALSE means the risk formula is broken and the rating cannot be trusted</li>
+        <li>Stale SOC 2 means the vendor's controls may have changed since the last audit period</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="result-card hidden theme-green" id="result-none">
+    <div class="result-header">
+      <div class="result-badge">✓ No Action</div>
+      <div class="result-title">No Security involvement needed</div>
+      <div class="result-summary">This vendor does not trigger any security review signals. The VDD can be closed without a Security tag.</div>
+    </div>
+    <div class="result-body">
+      <div class="result-action">
+        <div class="result-action-icon">✅</div>
+        <div>Close the VDD. No Security tag required.</div>
+      </div>
+      <div class="result-divider"></div>
+      <div class="result-section-label">If anything changes later</div>
+      <ul class="result-items">
+        <li>Scope expansion (vendor gets access to additional systems or data)</li>
+        <li>Tier upgrade (T3 → T2 or T2 → T1)</li>
+        <li>Vendor notifies Flex of a breach or security incident</li>
+        <li>Contract amendment adds new data types or integration methods</li>
+      </ul>
+      <div style="font-size:13px; margin-top:4px; opacity:0.7;">Run this checklist again if any of the above occur.</div>
+    </div>
+  </div>
+
+  <div class="result-card hidden theme-amber" id="result-level1">
+    <div class="result-header">
+      <div class="result-badge">🔍 Level 1 — Targeted Review</div>
+      <div class="result-title">Tag Security for targeted follow-up</div>
+      <div class="result-summary">This vendor has signals that need a closer look. Security will send specific questions — no full written narrative needed.</div>
+    </div>
+    <div class="result-body">
+      <div class="result-action">
+        <div class="result-action-icon">🏷</div>
+        <div>Tag <strong>@Becky Gaylord</strong> in the VDD Jira ticket. Include a link to the VDD.</div>
+      </div>
+      <div class="result-section-label">What Security will do</div>
+      <ul class="result-items">
+        <li>Confirm due diligence documents are current (SOC 2 period, bridge letters)</li>
+        <li>Send 3–5 targeted questions for you to route to the vendor</li>
+        <li>Check NYDFS Section 500.11 contract clause requirements</li>
+        <li>Document Security reviewer name and review date in the VDD</li>
+      </ul>
+      <div class="result-divider"></div>
+      <div class="result-timeline">⏱ Timeline: 5 business days from tag</div>
+    </div>
+  </div>
+
+  <div class="result-card hidden theme-red" id="result-level2">
+    <div class="result-header">
+      <div class="result-badge">🚨 Level 2 — Full Review</div>
+      <div class="result-title">Tag Security and Legal — written narrative required</div>
+      <div class="result-summary">This vendor has high-exposure signals that require a Security narrative. Bank partners may ask for written documentation of this review.</div>
+    </div>
+    <div class="result-body">
+      <div class="result-action">
+        <div class="result-action-icon">🏷</div>
+        <div>Tag <strong>@Becky Gaylord</strong> in the VDD Jira ticket <strong>and</strong> copy <strong>Victoria (Legal)</strong> on the thread.</div>
+      </div>
+      <div class="result-section-label">What Security will produce</div>
+      <ul class="result-items">
+        <li>2–3 paragraph risk narrative (written for bank partner context)</li>
+        <li>Targeted questions for you to route to the vendor</li>
+        <li>NYDFS Section 500.11 contract clause checklist — flagged to Legal for verification</li>
+      </ul>
+      <div class="result-divider"></div>
+      <div class="result-timeline">⏱ Timeline: 10 business days from tag</div>
+    </div>
+  </div>
+
+  <button class="btn-restart hidden" id="restartBtn" onclick="restart()">← Start over with a new vendor</button>
+
+  <div class="footnote" id="footnote">
+    Based on VDD library analysis — April 2026 · Becky Gaylord, GRC Manager
+  </div>
+
+  <script>
+    const state = {
+      step: 0,
+      step1Selections: new Set(),
+      step2Selections: new Set(),
+      step3Selections: new Set(),
+    };
+
+    function startTool() {
+      state.step = 1;
+      document.getElementById('startScreen').classList.add('hidden');
+      document.getElementById('step1').classList.remove('hidden');
+      updateProgress(1);
+    }
+
+    function toggleOption(el, stepId) {
+      const val = el.dataset.value;
+      const stepSelections = state[stepId + 'Selections'];
+      const noneOption = document.querySelector(`#${stepId} .none-option`);
+
+      // Deselect "none" if a real option is picked
+      if (noneOption && noneOption.classList.contains('selected')) {
+        noneOption.classList.remove('selected');
+        stepSelections.delete('none');
+      }
+
+      if (el.classList.contains('selected')) {
+        el.classList.remove('selected');
+        stepSelections.delete(val);
+      } else {
+        el.classList.add('selected');
+        stepSelections.add(val);
+      }
+
+      updateContinue(stepId);
+    }
+
+    function toggleNone(el, stepId) {
+      const stepSelections = state[stepId + 'Selections'];
+
+      // Deselect all real options
+      document.querySelectorAll(`#${stepId} .option:not(.none-option)`).forEach(opt => {
+        opt.classList.remove('selected');
+        stepSelections.delete(opt.dataset.value);
+      });
+
+      if (el.classList.contains('selected')) {
+        el.classList.remove('selected');
+        stepSelections.delete('none');
+      } else {
+        el.classList.add('selected');
+        stepSelections.add('none');
+      }
+
+      updateContinue(stepId);
+    }
+
+    function updateContinue(stepId) {
+      const stepSelections = state[stepId + 'Selections'];
+      const btn = document.getElementById(stepId + '-continue');
+      btn.disabled = stepSelections.size === 0;
+    }
+
+    function goTo(stepNum) {
+      const prevStep = stepNum - 1;
+
+      // Step 1 → check for Level 0
+      if (prevStep === 1) {
+        const s1 = state.step1Selections;
+        if (s1.size > 0 && !s1.has('none')) {
+          // Level 0 result
+          buildLevel0Result();
+          showResultCard('level0');
+          return;
+        }
+      }
+
+      // Step 2 → check for no signals
+      if (prevStep === 2) {
+        const s2 = state.step2Selections;
+        if (s2.has('none')) {
+          showResultCard('none');
+          return;
+        }
+      }
+
+      // Hide all steps
+      document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+      document.getElementById('step' + stepNum).classList.remove('hidden');
+      state.step = stepNum;
+      updateProgress(stepNum);
+    }
+
+    function goBack(currentStep) {
+      document.getElementById('step' + currentStep).classList.add('hidden');
+      const prev = currentStep - 1;
+      if (prev === 0) {
+        document.getElementById('startScreen').classList.remove('hidden');
+        updateProgress(0);
+      } else {
+        document.getElementById('step' + prev).classList.remove('hidden');
+        updateProgress(prev);
+      }
+      state.step = prev;
+    }
+
+    function showResult() {
+      const s3 = state.step3Selections;
+      if (s3.has('none') || s3.size === 0) {
+        showResultCard('level1');
+      } else {
+        showResultCard('level2');
+      }
+    }
+
+    function buildLevel0Result() {
+      const fixes = [];
+      const s1 = state.step1Selections;
+      if (s1.has('dd-na')) fixes.push('Due Diligence field is blank or N/A — document what was reviewed');
+      if (s1.has('residual-false')) fixes.push('Residual Risk Rating shows FALSE or blank — correct the formula');
+      if (s1.has('soc2-stale')) fixes.push('SOC 2 is older than 18 months — request current-period report or bridge letter');
+      const list = document.getElementById('level0-fixes');
+      list.innerHTML = fixes.map(f => `<li>${f}</li>`).join('');
+    }
+
+    function showResultCard(resultId) {
+      document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+      document.querySelectorAll('.result-card').forEach(c => c.classList.add('hidden'));
+      document.getElementById('progressBar').classList.add('hidden');
+      document.getElementById('result-' + resultId).classList.remove('hidden');
+      document.getElementById('restartBtn').classList.remove('hidden');
+      updateProgress(4);
+    }
+
+    function updateProgress(activeStep) {
+      const steps = ['ps1', 'ps2', 'ps3', 'ps4'];
+      steps.forEach((id, idx) => {
+        const el = document.getElementById(id);
+        el.classList.remove('active', 'completed');
+        const stepNum = idx + 1;
+        if (stepNum < activeStep) el.classList.add('completed');
+        if (stepNum === activeStep) el.classList.add('active');
+      });
+    }
+
+    function restart() {
+      // Reset state
+      state.step = 0;
+      state.step1Selections = new Set();
+      state.step2Selections = new Set();
+      state.step3Selections = new Set();
+
+      // Reset UI
+      document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+      document.querySelectorAll('.btn-continue').forEach(b => b.disabled = true);
+      document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+      document.querySelectorAll('.result-card').forEach(c => c.classList.add('hidden'));
+      document.getElementById('restartBtn').classList.add('hidden');
+      document.getElementById('progressBar').classList.remove('hidden');
+      document.getElementById('startScreen').classList.remove('hidden');
+      updateProgress(0);
+    }
+  </script>
+
+</body>
+</html>
