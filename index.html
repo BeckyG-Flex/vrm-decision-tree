@@ -509,6 +509,61 @@
       color: var(--text-primary);
     }
 
+    /* Vendor input */
+    .vendor-input-wrap {
+      margin-bottom: 20px;
+    }
+    .vendor-input {
+      width: 100%;
+      max-width: 320px;
+      padding: 10px 14px;
+      font-size: 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: border-color 0.15s;
+      color: var(--text-primary);
+      background: var(--surface);
+      text-align: center;
+    }
+    .vendor-input:focus {
+      border-color: var(--accent);
+    }
+    .vendor-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Result vendor label */
+    .result-vendor {
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0.75;
+      margin-bottom: 10px;
+      letter-spacing: 0.01em;
+    }
+
+    /* Copy button */
+    .btn-copy {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 9px 16px;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: all 0.15s;
+    }
+    .btn-copy:hover {
+      border-color: var(--text-muted);
+      color: var(--text-primary);
+    }
+    .btn-copy.copied {
+      color: var(--green);
+      border-color: var(--green-border);
+    }
+
     /* Footnote */
     .footnote {
       font-size: 11px;
@@ -553,6 +608,9 @@
     <div class="start-icon">🔍</div>
     <h2>Does this vendor need a Security review?</h2>
     <p>Answer three quick questions about the VDD to find out if and how Security should be involved — and what to expect.</p>
+    <div class="vendor-input-wrap">
+      <input type="text" id="vendorName" class="vendor-input" placeholder="Vendor name (optional)" autocomplete="off" maxlength="80" onkeydown="if(event.key==='Enter') startTool()">
+    </div>
     <button class="btn-start" onclick="startTool()">Start →</button>
   </div>
 
@@ -728,6 +786,7 @@
   <div class="result-card hidden theme-orange" id="result-level0">
     <div class="result-header">
       <div class="result-badge">⚠ Fix First</div>
+      <div class="result-vendor hidden"></div>
       <div class="result-title">Record needs correction before Security can review</div>
       <div class="result-summary">The VDD has data quality issues that prevent a reliable security assessment. Fix these with Danyale before proceeding.</div>
     </div>
@@ -745,12 +804,14 @@
         <li>Residual Risk = FALSE means the risk formula is broken and the rating cannot be trusted</li>
         <li>Stale SOC 2 means the vendor's controls may have changed since the last audit period</li>
       </ul>
+      <button class="btn-copy" onclick="copyResult('level0')">📋 Copy result summary</button>
     </div>
   </div>
 
   <div class="result-card hidden theme-green" id="result-none">
     <div class="result-header">
       <div class="result-badge">✓ No Action</div>
+      <div class="result-vendor hidden"></div>
       <div class="result-title">No Security involvement needed</div>
       <div class="result-summary">This vendor does not trigger any security review signals. The VDD can be closed without a Security tag.</div>
     </div>
@@ -768,12 +829,14 @@
         <li>Contract amendment adds new data types or integration methods</li>
       </ul>
       <div style="font-size:13px; margin-top:4px; opacity:0.7;">Run this checklist again if any of the above occur.</div>
+      <button class="btn-copy" onclick="copyResult('none')">📋 Copy result summary</button>
     </div>
   </div>
 
   <div class="result-card hidden theme-amber" id="result-level1">
     <div class="result-header">
       <div class="result-badge">🔍 Level 1 — Targeted Review</div>
+      <div class="result-vendor hidden"></div>
       <div class="result-title">Tag Security for targeted follow-up</div>
       <div class="result-summary">This vendor has signals that need a closer look. Security will send specific questions — no full written narrative needed.</div>
     </div>
@@ -791,12 +854,14 @@
       </ul>
       <div class="result-divider"></div>
       <div class="result-timeline">⏱ Timeline: 5 business days from tag</div>
+      <button class="btn-copy" onclick="copyResult('level1')">📋 Copy result summary</button>
     </div>
   </div>
 
   <div class="result-card hidden theme-red" id="result-level2">
     <div class="result-header">
       <div class="result-badge">🚨 Level 2 — Full Review</div>
+      <div class="result-vendor hidden"></div>
       <div class="result-title">Tag Security and Legal — written narrative required</div>
       <div class="result-summary">This vendor has high-exposure signals that require a Security narrative. Bank partners may ask for written documentation of this review.</div>
     </div>
@@ -813,6 +878,7 @@
       </ul>
       <div class="result-divider"></div>
       <div class="result-timeline">⏱ Timeline: 10 business days from tag</div>
+      <button class="btn-copy" onclick="copyResult('level2')">📋 Copy result summary</button>
     </div>
   </div>
 
@@ -825,12 +891,14 @@
   <script>
     const state = {
       step: 0,
+      vendorName: '',
       step1Selections: new Set(),
       step2Selections: new Set(),
       step3Selections: new Set(),
     };
 
     function startTool() {
+      state.vendorName = document.getElementById('vendorName').value.trim();
       state.step = 1;
       document.getElementById('startScreen').classList.add('hidden');
       document.getElementById('step1').classList.remove('hidden');
@@ -951,7 +1019,17 @@
       document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
       document.querySelectorAll('.result-card').forEach(c => c.classList.add('hidden'));
       document.getElementById('progressBar').classList.add('hidden');
-      document.getElementById('result-' + resultId).classList.remove('hidden');
+      const card = document.getElementById('result-' + resultId);
+      card.classList.remove('hidden');
+      const vendorEl = card.querySelector('.result-vendor');
+      if (vendorEl) {
+        if (state.vendorName) {
+          vendorEl.textContent = state.vendorName;
+          vendorEl.classList.remove('hidden');
+        } else {
+          vendorEl.classList.add('hidden');
+        }
+      }
       document.getElementById('restartBtn').classList.remove('hidden');
       updateProgress(4);
     }
@@ -967,14 +1045,68 @@
       });
     }
 
+    function copyResult(resultId) {
+      const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const vendor = state.vendorName || 'Not specified';
+
+      const resultMap = {
+        'level0': {
+          level: 'Fix First (Level 0)',
+          action: 'Correct data quality issues in the VDD. Return to this tool after the record is fixed.',
+          timeline: 'N/A — blocked pending record correction',
+        },
+        'none': {
+          level: 'No Action',
+          action: 'Close the VDD. No Security tag required.',
+          timeline: 'N/A',
+        },
+        'level1': {
+          level: 'Level 1 — Targeted Review',
+          action: 'Tag @Becky Gaylord in the VDD Jira ticket and include a link to the VDD.',
+          timeline: '5 business days from tag',
+        },
+        'level2': {
+          level: 'Level 2 — Full Review',
+          action: 'Tag @Becky Gaylord in the VDD Jira ticket and copy Victoria (Legal) on the thread.',
+          timeline: '10 business days from tag',
+        },
+      };
+
+      const r = resultMap[resultId];
+      const text = [
+        'Vendor Security Review — Decision Tool',
+        'Date: ' + today,
+        'Vendor: ' + vendor,
+        '',
+        'Result: ' + r.level,
+        'Action: ' + r.action,
+        'Timeline: ' + r.timeline,
+        '',
+        'Generated by Flex Security VRM Decision Tool',
+        'https://beckyg-flex.github.io/vrm-decision-tree/',
+      ].join('\n');
+
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('#result-' + resultId + ' .btn-copy');
+        btn.textContent = '✓ Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = '📋 Copy result summary';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
     function restart() {
       // Reset state
       state.step = 0;
+      state.vendorName = '';
       state.step1Selections = new Set();
       state.step2Selections = new Set();
       state.step3Selections = new Set();
 
       // Reset UI
+      document.getElementById('vendorName').value = '';
       document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
       document.querySelectorAll('.btn-continue').forEach(b => b.disabled = true);
       document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
